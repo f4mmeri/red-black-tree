@@ -24,4 +24,4 @@ struct RBTNode {
         : key(Key{}), color(BLACK), left(nullptr), right(nullptr), parent(nullptr), subtreeSize(0) {}
 };
 
-#endif // RBTNODE_H
+#endif

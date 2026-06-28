@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <algorithm>
+#include <iostream>
+using namespace std;
 
 class HashSet {
 private:
@@ -12,7 +14,7 @@ private:
         Node(int v, Node* n = nullptr) : val(v), next(n) {}
     };
 
-    std::vector<Node*> buckets;
+    vector<Node*> buckets;
     int numElements;
 
     int hash(int val) const {
@@ -23,7 +25,7 @@ private:
 
     void rehash() {
         int oldSize = buckets.size();
-        std::vector<Node*> oldBuckets = buckets;
+        vector<Node*> oldBuckets = buckets;
 
         buckets.assign(oldSize * 2, nullptr);
         numElements = 0;
@@ -141,8 +143,8 @@ public:
         return numElements;
     }
 
-    std::vector<int> toVector() const {
-        std::vector<int> res;
+    vector<int> toVector() const {
+        vector<int> res;
         res.reserve(numElements);
         for (size_t i = 0; i < buckets.size(); ++i) {
             Node* curr = buckets[i];

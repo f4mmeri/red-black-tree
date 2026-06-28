@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+using namespace std;
 
 template <typename Key>
 class RedBlackTree {
@@ -191,14 +192,14 @@ private:
         x->color = BLACK;
     }
 
-    void rangeQueryHelper(RBTNode<Key>* node, const Key& low, const Key& high, std::vector<int>& result, int& nodesVisited) const {
+    void rangeQueryHelper(RBTNode<Key>* node, const Key& low, const Key& high, vector<int>& result, int& nodesVisited) const {
         if (node == nil) return;
         nodesVisited++;
         if (node->key >= low) {
             rangeQueryHelper(node->left, low, high, result, nodesVisited);
         }
         if (node->key >= low && node->key <= high) {
-            std::vector<int> ids = node->rowIds.toVector();
+            vector<int> ids = node->rowIds.toVector();
             result.insert(result.end(), ids.begin(), ids.end());
         }
         if (node->key <= high) {
@@ -234,18 +235,18 @@ private:
         return count;
     }
 
-    void printHelper(RBTNode<Key>* node, std::string indent, bool last) const {
+    void printHelper(RBTNode<Key>* node, string indent, bool last) const {
         if (node != nil) {
-            std::cout << indent;
+            cout << indent;
             if (last) {
-                std::cout << "R----";
+                cout << "R----";
                 indent += "   ";
             } else {
-                std::cout << "L----";
+                cout << "L----";
                 indent += "|  ";
             }
-            std::string sColor = (node->color == RED) ? "RED" : "BLACK";
-            std::cout << node->key << " (" << sColor << ", sz=" << node->subtreeSize << ", ids=" << node->rowIds.size() << ")" << std::endl;
+            string sColor = (node->color == RED) ? "RED" : "BLACK";
+            cout << node->key << " (" << sColor << ", sz=" << node->subtreeSize << ", ids=" << node->rowIds.size() << ")" << endl;
             printHelper(node->left, indent, false);
             printHelper(node->right, indent, true);
         }
@@ -381,7 +382,7 @@ public:
         return nullptr;
     }
 
-    RBTNode<Key>* search(const Key& key, int& nodesVisited, std::vector<Key>& path) const {
+    RBTNode<Key>* search(const Key& key, int& nodesVisited, vector<Key>& path) const {
         RBTNode<Key>* curr = root;
         nodesVisited = 0;
         path.clear();
@@ -395,8 +396,8 @@ public:
         return nullptr;
     }
 
-    std::vector<int> rangeQuery(const Key& low, const Key& high, int& nodesVisited) const {
-        std::vector<int> result;
+    vector<int> rangeQuery(const Key& low, const Key& high, int& nodesVisited) const {
+        vector<int> result;
         rangeQueryHelper(root, low, high, result, nodesVisited);
         return result;
     }
@@ -432,7 +433,7 @@ public:
         return nullptr;
     }
 
-    RBTNode<Key>* select(int k, int& nodesVisited, std::vector<Key>& path) const {
+    RBTNode<Key>* select(int k, int& nodesVisited, vector<Key>& path) const {
         nodesVisited = 0;
         path.clear();
         if (k < 0 || k >= root->subtreeSize) return nullptr;
@@ -477,7 +478,7 @@ public:
         if (p < 0.0) p = 0.0;
         if (p > 100.0) p = 100.0;
 
-        int idx = std::round(p * (N - 1) / 100.0);
+        int idx = round(p * (N - 1) / 100.0);
         RBTNode<Key>* node = select(idx);
         return node ? node->key : 0.0;
     }
@@ -497,7 +498,7 @@ public:
 
     void print() const {
         if (root == nil) {
-            std::cout << "[Árbol Vacío]" << std::endl;
+            cout << "[Árbol Vacío]" << endl;
         } else {
             printHelper(root, "", true);
         }

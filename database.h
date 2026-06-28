@@ -7,100 +7,118 @@
 #include <vector>
 #include <algorithm>
 #include <cmath>
+using namespace std;
 
-struct Record {
-    int id;
-    std::string name;
-    int age;
-    double score;
-    std::string category;
+struct Movie {
+    int movieId;
+    string title;
+    string genres;
+    double averageRating;
 };
 
 class Database {
 private:
-    HashTable<int, Record> recordsById;
+    vector<Movie> movies;
+    HashTable<int, size_t> movieIdToIndex;
     RedBlackTree<double> scoreIndex;
 
 public:
     Database() {}
 
-    bool insertRecord(const Record& r) {
-        if (recordsById.contains(r.id)) {
+    bool insertMovie(const Movie& m) {
+        if (movieIdToIndex.contains(m.movieId)) {
             return false;
         }
-        recordsById.insert(r.id, r);
-        scoreIndex.insert(r.score, r.id);
+        movies.push_back(m);
+        size_t idx = movies.size() - 1;
+        movieIdToIndex.insert(m.movieId, idx);
+        scoreIndex.insert(m.averageRating, m.movieId);
         return true;
     }
 
-    bool deleteRecord(int id) {
-        Record* r = recordsById.get(id);
-        if (r == nullptr) {
+    bool deleteMovie(int id) {
+        size_t* idxPtr = movieIdToIndex.get(id);
+        if (idxPtr == nullptr) {
             return false;
         }
-        scoreIndex.remove(r->score, id);
-        recordsById.remove(id);
+        size_t idx = *idxPtr;
+        Movie& m = movies[idx];
+
+        scoreIndex.remove(m.averageRating, id);
+        movieIdToIndex.remove(id);
+
+        if (idx < movies.size() - 1) {
+            movies[idx] = movies.back();
+            movieIdToIndex.insert(movies[idx].movieId, idx);
+        }
+        movies.pop_back();
         return true;
     }
 
-    bool updateIndexedField(int id, double newScore) {
-        Record* r = recordsById.get(id);
-        if (r == nullptr) {
+    bool updateRating(int id, double newRating) {
+        size_t* idxPtr = movieIdToIndex.get(id);
+        if (idxPtr == nullptr) {
             return false;
         }
-        if (r->score == newScore) {
+        size_t idx = *idxPtr;
+        Movie& m = movies[idx];
+        if (m.averageRating == newRating) {
             return true;
         }
-        scoreIndex.remove(r->score, id);
-        r->score = newScore;
-        scoreIndex.insert(newScore, id);
+        scoreIndex.remove(m.averageRating, id);
+        m.averageRating = newRating;
+        scoreIndex.insert(newRating, id);
         return true;
     }
 
-    Record* findById(int id) const {
-        return recordsById.get(id);
+    Movie* findById(int id) const {
+        const size_t* idxPtr = movieIdToIndex.get(id);
+        if (idxPtr == nullptr) {
+            return nullptr;
+        }
+        return const_cast<Movie*>(&movies[*idxPtr]);
     }
 
-    std::vector<Record> findEqual(double score) const {
-        std::vector<Record> res;
-        RBTNode<double>* node = scoreIndex.search(score);
+    vector<Movie> findEqual(double rating) const {
+        vector<Movie> res;
+        RBTNode<double>* node = scoreIndex.search(rating);
         if (node != nullptr) {
-            std::vector<int> ids = node->rowIds.toVector();
+            vector<int> ids = node->rowIds.toVector();
             res.reserve(ids.size());
             for (int id : ids) {
-                Record* r = recordsById.get(id);
-                if (r != nullptr) {
-                    res.push_back(*r);
+                Movie* m = findById(id);
+                if (m != nullptr) {
+                    res.push_back(*m);
                 }
             }
         }
         return res;
     }
 
-    std::vector<Record> findEqual(double score, int& nodesVisited, std::vector<double>& path) const {
-        std::vector<Record> res;
-        RBTNode<double>* node = scoreIndex.search(score, nodesVisited, path);
+    vector<Movie> findEqual(double rating, int& nodesVisited, vector<double>& path) const {
+        vector<Movie> res;
+        RBTNode<double>* node = scoreIndex.search(rating, nodesVisited, path);
         if (node != nullptr) {
-            std::vector<int> ids = node->rowIds.toVector();
+            vector<int> ids = node->rowIds.toVector();
             res.reserve(ids.size());
             for (int id : ids) {
-                Record* r = recordsById.get(id);
-                if (r != nullptr) {
-                    res.push_back(*r);
+                Movie* m = findById(id);
+                if (m != nullptr) {
+                    res.push_back(*m);
                 }
             }
         }
         return res;
     }
 
-    std::vector<Record> findBetween(double low, double high, int& nodesVisited) const {
-        std::vector<Record> res;
-        std::vector<int> ids = scoreIndex.rangeQuery(low, high, nodesVisited);
+    vector<Movie> findBetween(double low, double high, int& nodesVisited) const {
+        vector<Movie> res;
+        vector<int> ids = scoreIndex.rangeQuery(low, high, nodesVisited);
         res.reserve(ids.size());
         for (int id : ids) {
-            Record* r = recordsById.get(id);
-            if (r != nullptr) {
-                res.push_back(*r);
+            Movie* m = findById(id);
+            if (m != nullptr) {
+                res.push_back(*m);
             }
         }
         return res;
@@ -110,8 +128,8 @@ public:
         return scoreIndex.countRange(low, high);
     }
 
-    std::vector<Record> topK(int k) const {
-        std::vector<Record> result;
+    vector<Movie> topK(int k) const {
+        vector<Movie> result;
         int N = scoreIndex.size();
         if (N == 0 || k <= 0) return result;
         if (k > N) k = N;
@@ -121,11 +139,11 @@ public:
         while (count < k && currentRank >= 0) {
             RBTNode<double>* node = scoreIndex.select(currentRank);
             if (node == nullptr) break;
-            std::vector<int> ids = node->rowIds.toVector();
+            vector<int> ids = node->rowIds.toVector();
             for (int id : ids) {
-                Record* r = recordsById.get(id);
-                if (r != nullptr) {
-                    result.push_back(*r);
+                Movie* m = findById(id);
+                if (m != nullptr) {
+                    result.push_back(*m);
                     count++;
                     if (count >= k) break;
                 }
@@ -144,7 +162,7 @@ public:
     }
 
     int size() const {
-        return recordsById.size();
+        return movies.size();
     }
 
     void printTreeIndex() const {
@@ -154,65 +172,65 @@ public:
 
 class NaiveDatabase {
 private:
-    std::vector<Record> records;
+    vector<Movie> movies;
 
 public:
     NaiveDatabase() {}
 
-    bool insertRecord(const Record& r) {
-        for (const auto& rec : records) {
-            if (rec.id == r.id) return false;
+    bool insertMovie(const Movie& m) {
+        for (const auto& movie : movies) {
+            if (movie.movieId == m.movieId) return false;
         }
-        records.push_back(r);
+        movies.push_back(m);
         return true;
     }
 
-    bool deleteRecord(int id) {
-        for (auto it = records.begin(); it != records.end(); ++it) {
-            if (it->id == id) {
-                records.erase(it);
+    bool deleteMovie(int id) {
+        for (auto it = movies.begin(); it != movies.end(); ++it) {
+            if (it->movieId == id) {
+                movies.erase(it);
                 return true;
             }
         }
         return false;
     }
 
-    bool updateIndexedField(int id, double newScore) {
-        for (auto& rec : records) {
-            if (rec.id == id) {
-                rec.score = newScore;
+    bool updateRating(int id, double newRating) {
+        for (auto& movie : movies) {
+            if (movie.movieId == id) {
+                movie.averageRating = newRating;
                 return true;
             }
         }
         return false;
     }
 
-    Record* findById(int id) {
-        for (auto& rec : records) {
-            if (rec.id == id) return &rec;
+    Movie* findById(int id) {
+        for (auto& movie : movies) {
+            if (movie.movieId == id) return &movie;
         }
         return nullptr;
     }
 
-    std::vector<Record> findEqual(double score, int& comparisons) {
-        std::vector<Record> res;
+    vector<Movie> findEqual(double rating, int& comparisons) {
+        vector<Movie> res;
         comparisons = 0;
-        for (const auto& rec : records) {
+        for (const auto& movie : movies) {
             comparisons++;
-            if (rec.score == score) {
-                res.push_back(rec);
+            if (movie.averageRating == rating) {
+                res.push_back(movie);
             }
         }
         return res;
     }
 
-    std::vector<Record> findBetween(double low, double high, int& comparisons) {
-        std::vector<Record> res;
+    vector<Movie> findBetween(double low, double high, int& comparisons) {
+        vector<Movie> res;
         comparisons = 0;
-        for (const auto& rec : records) {
+        for (const auto& movie : movies) {
             comparisons++;
-            if (rec.score >= low && rec.score <= high) {
-                res.push_back(rec);
+            if (movie.averageRating >= low && movie.averageRating <= high) {
+                res.push_back(movie);
             }
         }
         return res;
@@ -221,9 +239,9 @@ public:
     int countBetween(double low, double high, int& comparisons) {
         int count = 0;
         comparisons = 0;
-        for (const auto& rec : records) {
+        for (const auto& movie : movies) {
             comparisons++;
-            if (rec.score >= low && rec.score <= high) {
+            if (movie.averageRating >= low && movie.averageRating <= high) {
                 count++;
             }
         }
@@ -231,36 +249,36 @@ public:
     }
 
     double median() {
-        if (records.empty()) return 0.0;
-        std::vector<double> scores;
-        scores.reserve(records.size());
-        for (const auto& rec : records) {
-            scores.push_back(rec.score);
+        if (movies.empty()) return 0.0;
+        vector<double> ratings;
+        ratings.reserve(movies.size());
+        for (const auto& movie : movies) {
+            ratings.push_back(movie.averageRating);
         }
-        std::sort(scores.begin(), scores.end());
-        int N = scores.size();
+        sort(ratings.begin(), ratings.end());
+        int N = ratings.size();
         if (N % 2 != 0) {
-            return scores[N / 2];
+            return ratings[N / 2];
         } else {
-            return (scores[N / 2 - 1] + scores[N / 2]) / 2.0;
+            return (ratings[N / 2 - 1] + ratings[N / 2]) / 2.0;
         }
     }
 
     double percentile(double p) {
-        if (records.empty()) return 0.0;
-        std::vector<double> scores;
-        scores.reserve(records.size());
-        for (const auto& rec : records) {
-            scores.push_back(rec.score);
+        if (movies.empty()) return 0.0;
+        vector<double> ratings;
+        ratings.reserve(movies.size());
+        for (const auto& movie : movies) {
+            ratings.push_back(movie.averageRating);
         }
-        std::sort(scores.begin(), scores.end());
-        int N = scores.size();
-        int idx = std::round(p * (N - 1) / 100.0);
-        return scores[idx];
+        sort(ratings.begin(), ratings.end());
+        int N = ratings.size();
+        int idx = round(p * (N - 1) / 100.0);
+        return ratings[idx];
     }
 
     int size() const {
-        return records.size();
+        return movies.size();
     }
 };
 

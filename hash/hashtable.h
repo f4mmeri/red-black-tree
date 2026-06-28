@@ -2,13 +2,30 @@
 #define HASHTABLE_H
 
 #include <vector>
-#include <stdexcept>
-#include <functional>
+#include <string>
+#include <iostream>
+using namespace std;
+
+inline size_t get_hash(int key) {
+    // La función get_hash(int) simplemente devuelve la clave convertida a size_t,
+    // ya que el método de multiplicación de CLRS opera directamente sobre el valor entero.
+    return static_cast<size_t>(key);
+}
+
+inline size_t get_hash(const string& key) {
+    // Convierte la cadena en un entero utilizando la regla de Horner en base 128,
+    // tal como sugiere CLRS para extender el método a claves no numéricas.
+    size_t h = 0;
+    for (char c : key) {
+        h = h * 128 + static_cast<unsigned char>(c);
+    }
+    return h;
+}
 
 template <typename K>
 struct CustomHash {
     size_t operator()(const K& key) const {
-        return std::hash<K>{}(key);
+        return get_hash(key);
     }
 };
 
@@ -22,18 +39,32 @@ private:
         Node(const K& k, const V& v, Node* n = nullptr) : key(k), value(v), next(n) {}
     };
 
-    std::vector<Node*> buckets;
+    vector<Node*> buckets;
     int numElements;
     CustomHash<K> hasher;
 
     int hash(const K& key) const {
-        if (buckets.empty()) return 0;
-        return hasher(key) % buckets.size();
+        size_t m = buckets.size();
+        if (m <= 1) return 0;
+        
+        // Calculamos p de forma portátil tal que m = 2^p
+        int p = 0;
+        while (m > 1) {
+            m >>= 1;
+            p++;
+        }
+
+        // Método de multiplicación de Cormen: h(k) = (k * s) >> (w - p)
+        // Donde s = floor(A * 2^w). Para w = 64 y A = (sqrt(5) - 1) / 2:
+        // s = 11400714819323198485ULL
+        unsigned long long k = static_cast<unsigned long long>(hasher(key));
+        unsigned long long s = 11400714819323198485ULL;
+        return static_cast<int>((k * s) >> (64 - p));
     }
 
     void rehash() {
         int oldSize = buckets.size();
-        std::vector<Node*> oldBuckets = buckets;
+        vector<Node*> oldBuckets = buckets;
 
         buckets.assign(oldSize * 2, nullptr);
         numElements = 0;
@@ -165,8 +196,8 @@ public:
         return numElements;
     }
 
-    std::vector<V> toVector() const {
-        std::vector<V> res;
+    vector<V> toVector() const {
+        vector<V> res;
         res.reserve(numElements);
         for (size_t i = 0; i < buckets.size(); ++i) {
             Node* curr = buckets[i];
